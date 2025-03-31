@@ -1,0 +1,55 @@
+name: Build & Release RPM
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Install RPM tools
+        run: sudo apt update && sudo apt install -y rpm gnupg
+
+      - name: Prepare build
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          sed "s/^Version:.*/Version:        $VERSION/" cocker.spec > ~/rpmbuild/SPECS/cocker.spec
+          mkdir temp-src && cp -r bin completions temp-src/
+          tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src .
+
+      - name: Import GPG key
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          RPM_GPG_NAME: ${{ secrets.RPM_GPG_NAME }}
+
+      - name: Build and sign RPM
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
+          RPM_FILE=$(find ~/rpmbuild/RPMS -name "cocker-${VERSION}*.rpm")
+          echo "RPM_FILE=$RPM_FILE" >> $GITHUB_ENV
+          rpm --addsign "$RPM_FILE"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ env.RPM_FILE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

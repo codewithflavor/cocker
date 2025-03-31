@@ -1,0 +1,39 @@
+#!/bin/bash
+cat <<'EOF'
+     ,~.
+   ,-'__ `-,
+  {,-'  `. }              __
+ ,( a )   `-.__         ,'  `.
+<=.) (         `-.__,=='      `.
+  (   )                      /
+   `-'\\   ,                    )
+       |  \\        `~.        /
+       \\   `._        \\      /
+        \\     `._____,'    ,'
+         `-.             ,'
+            `-._     _,-'
+                 ￣
+EOF
+
+messages=(
+  "🐔 Bawk bawk! Even a headless chicken could do better than this!"
+  "🐓 Cluck cluck! You're about to lay an egg with that command!"
+  "🐤 Peep peep! This is why chickens cross the road — to get away from your Docker skills!"
+  "🐔 Squawk! If I had feathers, they'd be falling off from laughing at this!"
+  "🐓 Cock-a-doodle-doo! This command is so bad, it woke the entire farm!"
+)
+
+permissionMessages=(
+    "🐔 Even chickens have more authority than you right now!"
+    "🐓 You can't even ruffle Docker's feathers without permission!"
+    "🐤 Looks like you're not even allowed in the coop, let alone the Docker group!"
+    "🐔 Chickens are laughing — they have more access to the farm than you do to Docker!"
+    "🐓 Permission denied! Even the rooster won't let you near the henhouse!"
+)
+
+echo "${messages[RANDOM % ${#messages[@]}]}"
+if [ "$EUID" -ne 0 ] && ! groups "$USER" | grep -q '\bdocker\b'; then
+    echo "${permissionMessages[RANDOM % ${#permissionMessages[@]}]}"
+    exit 1
+fi
+docker "$@"
