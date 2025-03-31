@@ -2,8 +2,6 @@ name: Build & Release RPM
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
 
@@ -26,7 +24,7 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          sed "s|^Version:.*|Version:        $VERSION|" file.spec > ~/rpmbuild/SPECS/cocker.spec
+          sed "s|^Version:.*|Version:        $VERSION|" cocker.spec > ~/rpmbuild/SPECS/cocker.spec
           mkdir temp-src && cp -r bin completions temp-src/
           tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src .
 
