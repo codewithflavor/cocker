@@ -18,7 +18,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Install RPM tools
-        run: sudo apt update && sudo apt install -y rpm gnupg
+        run: sudo apt-get update && sudo apt-get install -y rpm gnupg
 
       - name: Prepare build
         run: |
