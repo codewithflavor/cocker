@@ -34,57 +34,14 @@ jobs:
           tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src cocker-${VERSION}
           rm -rf temp-src
 
-      - name: Import GPG key (optional)
-        if: env.GPG_PRIVATE_KEY != ''
-        run: |
-          mkdir -p ~/.gnupg
-          chmod 700 ~/.gnupg
-          
-          # Configure GPG agent for batch signing
-          cat > ~/.gnupg/gpg-agent.conf << EOF
-          allow-loopback-pinentry
-          pinentry-program /usr/bin/pinentry-curses
-          EOF
-          
-          # Import the GPG key
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import --allow-secret-key-import
-          gpg --list-secret-keys
-          
-          gpg-connect-agent reloadagent /bye 2>/dev/null || true
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-
-      - name: Build and optionally sign RPM
-        run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          
-          # Build RPM (unsigned first)
-          rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
-          
-          RPM_FILE=$(find ~/rpmbuild/RPMS -name "cocker-${VERSION}*.rpm" | head -n1)
-          if [ -z "$RPM_FILE" ]; then
-            echo "Error: RPM file not found"
-            exit 1
-          fi
-          
-          # Sign with rpmsign if GPG key is available
-          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
-            echo "Signing RPM with $RPM_GPG_NAME..."
-            # Set the GPG name in rpmmacros for rpmsign
-            echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
-            rpmsign --addsign "$RPM_FILE"
-            echo "RPM signed successfully"
-          else
-            echo "No GPG key provided, RPM is unsigned"
-          fi
-          
-          echo "RPM_FILE=$RPM_FILE" >> $GITHUB_ENV
-          
-          # Verify signature
-          echo "Checking RPM signature..."
-          rpm -Kv "$RPM_FILE" || echo "Warning: RPM signature verification failed"
-        env:
-          RPM_GPG_NAME: ${{ secrets.RPM_GPG_NAME }}
+      - name: Package RPM and SRPM
+        uses: xmidt-org/rpm-package-action@v1
+        with:
+          path: .
+          spec: cocker.spec
+          distro: rocky-8
+          gpg-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-name: ${{ secrets.RPM_GPG_NAME}}
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
