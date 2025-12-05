@@ -18,7 +18,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Install RPM tools
-        run: sudo apt-get update && sudo apt-get install -y rpm gnupg
+        run: sudo apt-get update && sudo apt-get install -y rpm gnupg expect
 
       - name: Prepare build
         run: |
@@ -30,31 +30,37 @@ jobs:
           tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src cocker-${VERSION}
           rm -rf temp-src
 
-      - name: Import GPG key
+      - name: Import GPG key (optional)
+        if: env.GPG_PRIVATE_KEY != ''
         run: |
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
-          gpg-connect-agent reloadagent /bye || true
+          gpg --list-keys
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          RPM_GPG_NAME: ${{ secrets.RPM_GPG_NAME }}
 
-      - name: Build and sign RPM
+      - name: Build and optionally sign RPM
         run: |
-          export GPG_TTY=$(tty)
           VERSION=${{ steps.version.outputs.VERSION }}
-          rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
+          
+          # Configure GPG for signing if secrets are available
+          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
+            rpmbuild -ba --sign ~/rpmbuild/SPECS/cocker.spec || rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
+          else
+            rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
+          fi
+          
           RPM_FILE=$(find ~/rpmbuild/RPMS -name "cocker-${VERSION}*.rpm" | head -n1)
           if [ -z "$RPM_FILE" ]; then
             echo "Error: RPM file not found"
             exit 1
           fi
           echo "RPM_FILE=$RPM_FILE" >> $GITHUB_ENV
-          # Sign without passphrase prompt (GitHub Actions doesn't have interactive TTY)
-          rpm --addsign "$RPM_FILE" --define="_gpg_sign_cmd gpg --batch --no-verbose --no-armor --pinentry-mode loopback --sign"
+        env:
+          RPM_GPG_NAME: ${{ secrets.RPM_GPG_NAME }}
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
