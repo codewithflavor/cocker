@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-rpm:
     runs-on: ubuntu-latest
@@ -67,5 +71,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: ${{ env.RPM_FILE }}
+          draft: false
+          prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
