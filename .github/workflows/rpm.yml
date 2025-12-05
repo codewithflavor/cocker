@@ -44,6 +44,7 @@ jobs:
 
       - name: Build and sign RPM
         run: |
+          export GPG_TTY=$(tty)
           VERSION=${{ steps.version.outputs.VERSION }}
           rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
           RPM_FILE=$(find ~/rpmbuild/RPMS -name "cocker-${VERSION}*.rpm" | head -n1)
