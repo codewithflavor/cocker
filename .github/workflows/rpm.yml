@@ -50,8 +50,6 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import --allow-secret-key-import
           gpg --list-secret-keys
           
-          # Configure RPM to use the key without passphrase prompts
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg.conf
           gpg-connect-agent reloadagent /bye 2>/dev/null || true
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
