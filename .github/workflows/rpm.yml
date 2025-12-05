@@ -25,8 +25,9 @@ jobs:
           VERSION=${{ steps.version.outputs.VERSION }}
           mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
           sed "s|^Version:.*|Version:        $VERSION|" cocker.spec > ~/rpmbuild/SPECS/cocker.spec
-          mkdir temp-src && cp -r bin completions temp-src/
-          tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src .
+          mkdir -p temp-src/cocker-${VERSION}
+          cp -r bin completions temp-src/cocker-${VERSION}/
+          tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src cocker-${VERSION}
           rm -rf temp-src
 
       - name: Import GPG key
