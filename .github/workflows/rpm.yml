@@ -39,9 +39,20 @@ jobs:
         run: |
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --list-keys
+          
+          # Configure GPG agent for batch signing
+          cat > ~/.gnupg/gpg-agent.conf << EOF
+          allow-loopback-pinentry
+          pinentry-program /usr/bin/pinentry-curses
+          EOF
+          
+          # Import the GPG key
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import --allow-secret-key-import
+          gpg --list-secret-keys
+          
+          # Configure RPM to use the key without passphrase prompts
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg.conf
+          gpg-connect-agent reloadagent /bye 2>/dev/null || true
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
@@ -49,20 +60,29 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           
-          # Configure GPG for signing if secrets are available
-          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
-            echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
-            rpmbuild -ba --sign ~/rpmbuild/SPECS/cocker.spec || rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
-          else
-            rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
-          fi
+          # Build RPM (unsigned first)
+          rpmbuild -ba ~/rpmbuild/SPECS/cocker.spec
           
           RPM_FILE=$(find ~/rpmbuild/RPMS -name "cocker-${VERSION}*.rpm" | head -n1)
           if [ -z "$RPM_FILE" ]; then
             echo "Error: RPM file not found"
             exit 1
           fi
+          
+          # Sign with rpmsign if GPG key is available
+          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "Signing RPM with $RPM_GPG_NAME..."
+            rpmsign --addsign "$RPM_FILE"
+            echo "RPM signed successfully"
+          else
+            echo "No GPG key provided, RPM is unsigned"
+          fi
+          
           echo "RPM_FILE=$RPM_FILE" >> $GITHUB_ENV
+          
+          # Verify signature
+          echo "Checking RPM signature..."
+          rpm -Kv "$RPM_FILE" || echo "Warning: RPM signature verification failed"
         env:
           RPM_GPG_NAME: ${{ secrets.RPM_GPG_NAME }}
 
