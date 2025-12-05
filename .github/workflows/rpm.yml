@@ -72,6 +72,8 @@ jobs:
           # Sign with rpmsign if GPG key is available
           if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
             echo "Signing RPM with $RPM_GPG_NAME..."
+            # Set the GPG name in rpmmacros for rpmsign
+            echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
             rpmsign --addsign "$RPM_FILE"
             echo "RPM signed successfully"
           else
