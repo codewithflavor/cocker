@@ -7,6 +7,10 @@ env:
   DIST: el7
   ARCH: noarch
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build_tarball:
     name: Build source archive
