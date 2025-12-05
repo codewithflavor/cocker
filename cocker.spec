@@ -19,7 +19,7 @@ the same functionality as docker while adding a fun twist to your container
 management workflow.
 
 %prep
-%setup -c -n %{name}-%{version}
+%setup -n %{name}-%{version}
 
 %build
 # No build needed for bash scripts
