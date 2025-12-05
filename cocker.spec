@@ -1,15 +1,22 @@
 Name:           cocker
 Version:        1.0.0
 Release:        1%{?dist}
-Summary:        Alias for docker CLI tool with a chicken twist
+Summary:        Humorous Docker CLI wrapper with chicken-themed messages
 
 License:        MIT
+URL:            https://github.com/codewithflavor/cocker
 Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
 
+Requires:       bash
+Requires:       docker
+
 %description
-Alias for docker CLI tool with a chicken twist
+Cocker is a humorous wrapper for the Docker CLI that adds ASCII chicken art
+and random rooster-themed messages before executing Docker commands. It provides
+the same functionality as docker while adding a fun twist to your container
+management workflow.
 
 %prep
 %autosetup
@@ -29,5 +36,7 @@ install -m644 completions/cocker.bash %{buildroot}%{_datadir}/bash-completion/co
 %{_datadir}/bash-completion/completions/cocker
 
 %changelog
-* Mon Mar 31 2025 Your Name <your.email@example.com> - 1.0.0-1
+* Fri Dec 05 2025 codewithflavor <codewithflavor@users.noreply.github.com> - 1.0.0-1
 - Initial RPM release
+- Added chicken-themed Docker wrapper
+- Included bash completion support
