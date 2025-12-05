@@ -32,8 +32,12 @@ jobs:
 
       - name: Import GPG key
         run: |
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           echo "%_gpg_name $RPM_GPG_NAME" >> ~/.rpmmacros
+          gpg-connect-agent reloadagent /bye || true
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           RPM_GPG_NAME: ${{ secrets.RPM_GPG_NAME }}
@@ -48,7 +52,8 @@ jobs:
             exit 1
           fi
           echo "RPM_FILE=$RPM_FILE" >> $GITHUB_ENV
-          rpm --addsign "$RPM_FILE"
+          # Sign without passphrase prompt (GitHub Actions doesn't have interactive TTY)
+          rpm --addsign "$RPM_FILE" --define="_gpg_sign_cmd gpg --batch --no-verbose --no-armor --pinentry-mode loopback --sign"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
