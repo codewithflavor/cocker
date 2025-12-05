@@ -1,54 +1,49 @@
-name: Build & Release RPM
-
 on:
-  push:
-    tags:
-      - 'v*'
-
-permissions:
-  contents: write
-  packages: write
+    push:
+      # Sequence of patterns matched against refs/tags
+      tags:
+        - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  
+name: Create RPM Release
 
 jobs:
-  build-rpm:
-    runs-on: ubuntu-latest
+    build:
+        name: Create RPM Release
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+        steps:
 
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        - name: Checkout code
+          uses: actions/checkout@master
 
-      - name: Install RPM tools
-        run: sudo apt-get update && sudo apt-get install -y rpm gnupg expect
-
-      - name: Prepare build
-        run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          sed "s|^Version:.*|Version:        $VERSION|" cocker.spec > ~/rpmbuild/SPECS/cocker.spec
-          mkdir -p temp-src/cocker-${VERSION}
-          cp -r bin completions temp-src/cocker-${VERSION}/
-          tar czf ~/rpmbuild/SOURCES/cocker-${VERSION}.tar.gz -C temp-src cocker-${VERSION}
-          rm -rf temp-src
-
-      - name: Package RPM and SRPM
-        uses: xmidt-org/rpm-package-action@v1
-        with:
-          path: .
-          spec: cocker.spec
-          distro: rocky-8
-          gpg-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-name: ${{ secrets.RPM_GPG_NAME}}
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: ${{ env.RPM_FILE }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        - name: Create Release
+          id: create_release
+          uses: actions/create-release@latest
+          env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+          with:
+              tag_name: ${{ github.ref }}
+              release_name: Release ${{ github.ref }}
+              body: |
+                Changes in this Release
+                - Create RPM
+                - Upload Source RPM
+              draft: false
+              prerelease: false
+            
+        - name: build RPM package
+          id: rpm_build
+          uses: naveenrajm7/rpmbuild@master
+          with:
+              spec_file: "cocker.spec"
+            
+        - name: Upload Release Asset
+          id: upload-release-asset 
+          uses: actions/upload-release-asset@v1
+          env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+              upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+              asset_path: ${{ steps.rpm_build.outputs.source_rpm_path }}
+              asset_name: ${{ steps.rpm_build.outputs.source_rpm_name }}
+              asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
